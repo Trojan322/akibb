@@ -1,0 +1,7 @@
+{
+  "name": "ADIB - AI Image Reimagined",
+  "description": "ADIB is a premium AI-powered image editing suite that lets you transform specific parts of your photos using natural language in both Bangla and English.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
