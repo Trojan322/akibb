@@ -12,10 +12,16 @@ export class GeminiImageService {
     return GeminiImageService.instance;
   }
 
-  async editImagePart(base64Image: string, prompt: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const base64Data = base64Image.split(',')[1] || base64Image;
+  async editImage(base64Image: string, prompt: string): Promise<string> {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key is missing from the environment.");
+
+    const ai = new GoogleGenAI({ apiKey });
     
+    // Cleanup base64 string
+    const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+    const mimeType = base64Image.match(/data:([^;]+);/)?.[1] || 'image/png';
+
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
@@ -24,35 +30,35 @@ export class GeminiImageService {
             {
               inlineData: {
                 data: base64Data,
-                mimeType: 'image/png',
+                mimeType: mimeType,
               },
             },
             {
-              text: `SYSTEM INSTRUCTION: You are a professional photo retoucher and artist. 
-              USER COMMAND: ${prompt}.
-              EXECUTION RULES:
-              1. Identify the SPECIFIC parts or objects mentioned in the user command.
-              2. Edit ONLY those specific parts. Leave the rest of the image pixels UNCHANGED (bit-perfect where possible).
-              3. If the user says "add something", place it naturally.
-              4. If the user says "change color", modify only that object's color while preserving texture.
-              5. Ensure the final result looks photorealistic and professional.`,
+              text: `You are a professional image editor. 
+              TASK: ${prompt}.
+              RULES:
+              1. Modify ONLY the parts of the image specified.
+              2. Keep all other details and the overall style identical.
+              3. If asked to change a color, preserve the original lighting and texture.
+              4. Return only the edited image.`,
             },
           ],
         },
       });
 
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
+      const candidate = response.candidates?.[0];
+      if (candidate?.content?.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData?.data) {
             return `data:image/png;base64,${part.inlineData.data}`;
           }
         }
       }
 
-      throw new Error("আদিব ভাই ছবিটি এডিট করতে পারছেন না। অন্যভাবে চেষ্টা করুন।");
+      throw new Error("আদিব ভাই ইমেজটি জেনারেট করতে পারেননি। প্রম্পটটি অন্যভাবে দিন।");
     } catch (error: any) {
-      console.error("AI Service Fault:", error);
-      throw error;
+      console.error("Gemini Edit Error:", error);
+      throw new Error(error.message || "এআই সার্ভিস কাজ করছে না।");
     }
   }
 }
